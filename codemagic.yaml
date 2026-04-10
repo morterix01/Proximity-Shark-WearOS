@@ -1,0 +1,14 @@
+﻿workflows:
+  wear-os-release:
+    name: Wear OS Release Build
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+    environment:
+      java: 17
+    scripts:
+      - name: Build Wear OS APK
+        script: |
+          chmod +x gradlew
+          ./gradlew :app:assembleRelease
+    artifacts:
+      - app/build/outputs/apk/release/*.apk
