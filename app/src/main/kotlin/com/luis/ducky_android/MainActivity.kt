@@ -75,29 +75,37 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/library") {
-                val map = DataMapItem.fromDataItem(event.dataItem).dataMap
-                val jsonStr = map.getString("library_json") ?: continue
-                
-                scope.launch {
-                    try {
-                        val json = JSONObject(jsonStr)
-                        rootItem = parseJson(json)
-                        navigationStack.clear()
-                    } catch (e: Exception) {
-                        e.printStackTrace()
+                try {
+                    val map = DataMapItem.fromDataItem(event.dataItem).dataMap
+                    val jsonStr = map.getString("library_json") ?: continue
+                    
+                    scope.launch {
+                        try {
+                            val json = JSONObject(jsonStr)
+                            rootItem = parseJson(json)
+                            navigationStack.clear()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
+                        }
                     }
+                } catch (e: Exception) {
+                    e.printStackTrace()
                 }
             }
         }
     }
 
     override fun onMessageReceived(message: MessageEvent) {
-        if (message.path == "/progress") {
-            val progressStr = String(message.data, StandardCharsets.UTF_8)
-            val p = progressStr.toFloatOrNull() ?: 0f
-            scope.launch {
-                executionProgress = if (p >= 1.0f) null else p
+        try {
+            if (message.path == "/progress") {
+                val progressStr = String(message.data, StandardCharsets.UTF_8)
+                val p = progressStr.toFloatOrNull() ?: 0f
+                scope.launch {
+                    executionProgress = if (p >= 1.0f) null else p
+                }
             }
+        } catch (e: Exception) {
+            e.printStackTrace()
         }
     }
 
