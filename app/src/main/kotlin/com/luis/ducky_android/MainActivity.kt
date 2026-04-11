@@ -165,7 +165,11 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 val progressStr = String(message.data, StandardCharsets.UTF_8)
                 val p = progressStr.toFloatOrNull() ?: 0f
                 scope.launch {
-                    executionProgress = p
+                    // Only update if it's a final state (Success/Error)
+                    // We ignore intermediate progress (0.0 to 0.99) because we want instant feedback
+                    if (p == 1.0f || p == -1.0f) {
+                        executionProgress = p
+                    }
                 }
             }
         } catch (e: Exception) {
@@ -189,8 +193,8 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
 
     private fun runScript(path: String) {
         sendMessageToPhone("/run_script", path)
-        // Set initial progress to show the bar
-        executionProgress = 0.01f
+        // Instant feedback: show success immediately upon sending
+        executionProgress = 1.0f
     }
     
     private fun sendMessageToPhone(path: String, payload: String) {
