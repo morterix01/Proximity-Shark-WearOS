@@ -16,9 +16,22 @@ android {
         versionName = "1.0.0"
     }
 
+
+    signingConfigs {
+        create("shared") {
+            storeFile = file("shared.jks")
+            storePassword = "sharktest"
+            keyAlias = "shark"
+            keyPassword = "sharktest"
+        }
+    }
+
     buildTypes {
+        debug {
+            signingConfig = signingConfigs.getByName("shared")
+        }
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("shared")
             isMinifyEnabled = false
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
         }
@@ -44,5 +57,6 @@ dependencies {
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
 }
+
 
 
