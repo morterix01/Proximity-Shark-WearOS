@@ -1,4 +1,4 @@
-﻿workflows:
+workflows:
   wear-os-release:
     name: Wear OS Release Build
     instance_type: mac_mini_m2
@@ -9,6 +9,7 @@
       - name: Build Wear OS APK
         script: |
           # Use system gradle instead of wrapper to avoid missing gradlew issues
-          gradle assembleRelease
+          gradle assembleDebug
     artifacts:
-      - app/build/outputs/apk/release/*.apk
+      - app/build/outputs/apk/debug/*.apk
+
