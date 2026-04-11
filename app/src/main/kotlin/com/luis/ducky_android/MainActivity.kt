@@ -8,8 +8,9 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.pager.*
+import androidx.compose.animation.*
+import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -18,9 +19,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
-import androidx.wear.compose.foundation.lazy.items
-import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.foundation.lazy.*
 import androidx.wear.compose.material.*
 import com.google.android.gms.wearable.*
 import kotlinx.coroutines.*
@@ -226,13 +225,14 @@ fun WearApp(
             timeText = { if (progress == null) TimeText() },
             pageIndicator = {
                 if (progress == null) {
-                    HorizontalPageIndicator(
-                        pageIndicatorState = object : PageIndicatorState {
+                    val indicatorState = remember(pagerState.currentPage, pagerState.currentPageOffsetFraction) {
+                        object : PageIndicatorState {
                             override val pageOffset: Float get() = pagerState.currentPageOffsetFraction
                             override val selectedPage: Int get() = pagerState.currentPage % 3
                             override val pageCount: Int get() = 3
                         }
-                    )
+                    }
+                    HorizontalPageIndicator(pageIndicatorState = indicatorState)
                 }
             }
         ) {
@@ -270,7 +270,7 @@ fun WearApp(
 fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color) {
     val listState = rememberScalingLazyListState()
     val context = LocalContext.current
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
     
     // Keep track of the device we recently tapped
     var connectingAddress by remember { mutableStateOf<String?>(null) }
@@ -285,6 +285,7 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
+        autoCentering = AutoCenteringParams(itemIndex = 0),
         contentPadding = PaddingValues(top = 32.dp, bottom = 32.dp, start = 8.dp, end = 8.dp)
     ) {
         item {
@@ -326,10 +327,12 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
 @Composable
 fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: Color) {
     val listState = rememberScalingLazyListState()
+    val layouts = remember { listOf("pc" to "PC (IT)", "androidIt" to "Android (IT)") }
     
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
+        autoCentering = AutoCenteringParams(itemIndex = 0),
         contentPadding = PaddingValues(top = 32.dp, bottom = 32.dp, start = 8.dp, end = 8.dp)
     ) {
         item {
@@ -363,6 +366,7 @@ fun LibraryList(
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
+        autoCentering = AutoCenteringParams(itemIndex = 0),
         contentPadding = PaddingValues(top = 32.dp, bottom = 32.dp, start = 8.dp, end = 8.dp)
     ) {
         item {
@@ -414,9 +418,16 @@ fun LibraryList(
 
 @Composable
 fun ProgressOverlay(progress: Float, sharkBlue: Color) {
+    // Smoothen the progress updates with an animation
+    val animatedProgress by animateFloatAsState(
+        targetValue = progress,
+        animationSpec = tween(durationMillis = 600, easing = LinearOutSlowInEasing),
+        label = "ProgressAnimation"
+    )
+
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         CircularProgressIndicator(
-            progress = progress,
+            progress = animatedProgress,
             modifier = Modifier.fillMaxSize().padding(12.dp),
             startAngle = 270f,
             indicatorColor = sharkBlue,
@@ -425,6 +436,7 @@ fun ProgressOverlay(progress: Float, sharkBlue: Color) {
         )
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text("Esecuzione...", style = MaterialTheme.typography.caption1)
+            // Use real progress for text but animated for bar looks more responsive
             Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.title2, color = sharkBlue)
         }
     }
