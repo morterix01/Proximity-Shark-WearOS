@@ -223,6 +223,8 @@ fun WearApp(
     navStack: List<LibraryItem>,
     progress: Float?,
     sharkState: SharkState,
+    onFolderClick: (LibraryItem) -> Unit,
+    onFileClick: (LibraryItem) -> Unit,
     onBack: () -> Unit,
     onDeviceConnect: (String) -> Unit,
     onLayoutChange: (String) -> Unit,
