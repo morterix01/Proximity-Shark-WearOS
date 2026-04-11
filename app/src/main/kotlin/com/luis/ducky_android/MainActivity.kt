@@ -102,7 +102,8 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 onFileClick = { file -> runScript(file.path) },
                 onBack = { if (navigationStack.isNotEmpty()) navigationStack.removeLast() },
                 onDeviceConnect = { address -> sendMessageToPhone("/connect_device", address) },
-                onLayoutChange = { layout -> sendMessageToPhone("/set_layout", layout) }
+                onLayoutChange = { layout -> sendMessageToPhone("/set_layout", layout) },
+                onExecutionFinished = { executionProgress = null }
             )
         }
     }
@@ -164,7 +165,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 val progressStr = String(message.data, StandardCharsets.UTF_8)
                 val p = progressStr.toFloatOrNull() ?: 0f
                 scope.launch {
-                    executionProgress = if (p >= 1.0f) null else p
+                    executionProgress = p
                 }
             }
         } catch (e: Exception) {
@@ -222,14 +223,21 @@ fun WearApp(
     navStack: List<LibraryItem>,
     progress: Float?,
     sharkState: SharkState,
-    onFolderClick: (LibraryItem) -> Unit,
-    onFileClick: (LibraryItem) -> Unit,
     onBack: () -> Unit,
     onDeviceConnect: (String) -> Unit,
-    onLayoutChange: (String) -> Unit
+    onLayoutChange: (String) -> Unit,
+    onExecutionFinished: () -> Unit
 ) {
     val currentItem = navStack.lastOrNull() ?: rootItem
     val sharkBlue = Color(0xFF00B0FF)
+
+    // Auto-dismiss progress after 3 seconds if it's a final state (1.0 or -1.0)
+    LaunchedEffect(progress) {
+        if (progress == 1.0f || progress == -1.0f) {
+            delay(3000)
+            onExecutionFinished()
+        }
+    }
     
     // Virtual infinite pager, starting roughly at the middle so user can swipe both ways forever
     val pageCount = Int.MAX_VALUE
@@ -345,6 +353,9 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
     val listState = rememberScalingLazyListState()
     val layouts = remember { listOf("pc" to "PC (IT)", "androidIt" to "Android (IT)") }
     
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
         state = listState,
@@ -358,7 +369,14 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
         items(layouts) { (layoutKey, layoutName) ->
             val isActive = state.activeLayout == layoutKey
             Chip(
-                onClick = { onLayoutChange(layoutKey) },
+                onClick = {
+                    try {
+                        if (vibrator?.hasVibrator() == true) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                    } catch (e: Exception) {}
+                    onLayoutChange(layoutKey)
+                },
                 label = { Text(layoutName) },
                 secondaryLabel = if (isActive) { { Text("Attivo", color = Color.Green) } } else null,
                 colors = if (isActive) ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF1B5E20)) else ChipDefaults.secondaryChipColors(),
@@ -434,76 +452,69 @@ fun LibraryList(
 
 @Composable
 fun ProgressOverlay(progress: Float, sharkBlue: Color) {
+    val isSuccess = progress == 1.0f
+    val isError = progress == -1.0f
+    val isExecuting = !isSuccess && !isError
+
     val animatedProgress by animateFloatAsState(
-        targetValue = progress,
-        animationSpec = tween(durationMillis = 800, easing = LinearOutSlowInEasing),
+        targetValue = if (isExecuting) progress else 1.0f,
+        animationSpec = tween(durationMillis = 500),
         label = "ProgressAnimation"
     )
 
-    // Infinite transition for a subtle "pulse" effect
-    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
-    val pulseAlpha by infiniteTransition.animateFloat(
-        initialValue = 0.6f,
-        targetValue = 1.0f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(1200, easing = LinearEasing),
-            repeatMode = RepeatMode.Reverse
-        ),
-        label = "AlphaPulse"
-    )
+    val bgColor = when {
+        isSuccess -> Color(0xFF1B5E20) // Green
+        isError -> Color(0xFFB71C1C)   // Red
+        else -> Color.Black
+    }
 
     Box(
-        modifier = Modifier.fillMaxSize().background(Color.Black),
+        modifier = Modifier.fillMaxSize().background(bgColor).padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
-        // Background track and Glow effect
-        Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
-            val strokeWidth = 8.dp.toPx()
-            
-            // Background track
-            drawArc(
-                color = Color.DarkGray.copy(alpha = 0.3f),
-                startAngle = 0f,
-                sweepAngle = 360f,
-                useCenter = false,
-                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-            )
-
-            // Progress with SweepGradient for premium look
-            val gradientBrush = Brush.sweepGradient(
-                colors = listOf(sharkBlue.copy(alpha = 0.5f), sharkBlue, Color.Cyan, sharkBlue.copy(alpha = 0.5f)),
-                center = center
-            )
-            
-            drawArc(
-                brush = gradientBrush,
-                startAngle = 270f,
-                sweepAngle = animatedProgress * 360f,
-                useCenter = false,
-                style = Stroke(width = strokeWidth + 2.dp.toPx(), cap = StrokeCap.Round)
-            )
-        }
-
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text(
-                text = "ESECUZIONE",
-                style = MaterialTheme.typography.caption2.copy(
-                    fontWeight = FontWeight.ExtraBold,
-                    letterSpacing = 1.sp
-                ),
-                color = sharkBlue.copy(alpha = pulseAlpha)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = "${(progress * 100).toInt()}%",
-                style = MaterialTheme.typography.title1.copy(fontSize = 32.sp),
-                color = Color.White
-            )
-            Text(
-                text = "in corso...",
-                style = MaterialTheme.typography.caption2,
-                color = Color.LightGray.copy(alpha = 0.7f)
-            )
+            if (isExecuting) {
+                Text(
+                    "INVIO PAYLOAD...",
+                    style = MaterialTheme.typography.caption2,
+                    color = sharkBlue,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                // Using a custom linear indicator or a thin progress bar
+                Box(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(8.dp)
+                        .background(Color.DarkGray, shape = MaterialTheme.shapes.small)
+                ) {
+                    Box(
+                        modifier = Modifier
+                            .fillMaxWidth(animatedProgress)
+                            .fillMaxHeight()
+                            .background(sharkBlue, shape = MaterialTheme.shapes.small)
+                    )
+                }
+                Spacer(modifier = Modifier.height(8.dp))
+                Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.title3)
+            } else {
+                // Final State
+                Text(
+                    text = if (isSuccess) "✅" else "❌",
+                    fontSize = 48.sp,
+                    modifier = Modifier.padding(bottom = 8.dp)
+                )
+                Text(
+                    text = if (isSuccess) "INVIATO!" else "ERRORE!",
+                    style = MaterialTheme.typography.title2,
+                    fontWeight = FontWeight.Bold,
+                    color = Color.White
+                )
+                Text(
+                    text = if (isSuccess) "Payload completato" else "Invio fallito",
+                    style = MaterialTheme.typography.caption2,
+                    color = Color.White.copy(alpha = 0.7f)
+                )
+            }
         }
     }
 }
