@@ -19,8 +19,20 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.wear.compose.foundation.lazy.*
-import androidx.wear.compose.material.*
+import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
+import androidx.wear.compose.foundation.lazy.ScalingLazyListState
+import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
+import androidx.wear.compose.foundation.lazy.items
+import androidx.wear.compose.foundation.lazy.AutoCenteringParams
+import androidx.wear.compose.material.MaterialTheme
+import androidx.wear.compose.material.Scaffold
+import androidx.wear.compose.material.TimeText
+import androidx.wear.compose.material.PageIndicatorState
+import androidx.wear.compose.material.HorizontalPageIndicator
+import androidx.wear.compose.material.Chip
+import androidx.wear.compose.material.ChipDefaults
+import androidx.wear.compose.material.Text
+import androidx.wear.compose.material.CircularProgressIndicator
 import com.google.android.gms.wearable.*
 import kotlinx.coroutines.*
 import kotlinx.coroutines.tasks.await
@@ -354,7 +366,7 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
 
 @Composable
 fun LibraryList(
-    item: LibraryItem,
+    libraryItem: LibraryItem,
     hasBack: Boolean,
     onFolderClick: (LibraryItem) -> Unit,
     onFileClick: (LibraryItem) -> Unit,
@@ -371,7 +383,7 @@ fun LibraryList(
     ) {
         item {
             Text(
-                text = item.name,
+                text = libraryItem.name,
                 style = MaterialTheme.typography.caption1,
                 color = sharkBlue,
                 modifier = Modifier.fillMaxWidth().padding(bottom = 8.dp),
@@ -390,7 +402,7 @@ fun LibraryList(
             }
         }
 
-        items(item.children) { child ->
+        items(libraryItem.children) { child ->
             Chip(
                 onClick = { if (child.isDir) onFolderClick(child) else onFileClick(child) },
                 label = { Text(child.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
@@ -403,7 +415,7 @@ fun LibraryList(
             )
         }
         
-        if (item.children.isEmpty() && !hasBack) {
+        if (libraryItem.children.isEmpty() && !hasBack) {
             item {
                 Text(
                     "Nessun script trovato",
