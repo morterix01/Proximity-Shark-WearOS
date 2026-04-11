@@ -248,9 +248,9 @@ fun WearApp(
 
     MaterialTheme {
         Scaffold(
-            timeText = { if (progress == null) TimeText() },
+            timeText = { if (progress != 1.0f && progress != -1.0f) TimeText() },
             pageIndicator = {
-                if (progress == null) {
+                if (progress != 1.0f && progress != -1.0f) {
                     val indicatorState = remember(pagerState.currentPage, pagerState.currentPageOffsetFraction) {
                         object : PageIndicatorState {
                             override val pageOffset: Float get() = pagerState.currentPageOffsetFraction
@@ -263,8 +263,8 @@ fun WearApp(
             }
         ) {
             Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
-                if (progress != null) {
-                    ProgressOverlay(progress, sharkBlue)
+                if (progress == 1.0f || progress == -1.0f) {
+                    ResultOverlay(progress, sharkBlue)
                 } else {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize().background(Color.Black)) { page ->
                         val virtualPage = page % 3
@@ -453,70 +453,32 @@ fun LibraryList(
 }
 
 @Composable
-fun ProgressOverlay(progress: Float, sharkBlue: Color) {
+fun ResultOverlay(progress: Float, sharkBlue: Color) {
     val isSuccess = progress == 1.0f
-    val isError = progress == -1.0f
-    val isExecuting = !isSuccess && !isError
-
-    val animatedProgress by animateFloatAsState(
-        targetValue = if (isExecuting) progress else 1.0f,
-        animationSpec = tween(durationMillis = 500),
-        label = "ProgressAnimation"
-    )
-
-    val bgColor = when {
-        isSuccess -> Color(0xFF1B5E20) // Green
-        isError -> Color(0xFFB71C1C)   // Red
-        else -> Color.Black
-    }
+    
+    val bgColor = if (isSuccess) Color(0xFF1B5E20) else Color(0xFFB71C1C)
 
     Box(
         modifier = Modifier.fillMaxSize().background(bgColor).padding(16.dp),
         contentAlignment = Alignment.Center
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            if (isExecuting) {
-                Text(
-                    "INVIO PAYLOAD...",
-                    style = MaterialTheme.typography.caption2,
-                    color = sharkBlue,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                // Using a custom linear indicator or a thin progress bar
-                Box(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(8.dp)
-                        .background(Color.DarkGray, shape = MaterialTheme.shapes.small)
-                ) {
-                    Box(
-                        modifier = Modifier
-                            .fillMaxWidth(animatedProgress)
-                            .fillMaxHeight()
-                            .background(sharkBlue, shape = MaterialTheme.shapes.small)
-                    )
-                }
-                Spacer(modifier = Modifier.height(8.dp))
-                Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.title3)
-            } else {
-                // Final State
-                Text(
-                    text = if (isSuccess) "✅" else "❌",
-                    fontSize = 48.sp,
-                    modifier = Modifier.padding(bottom = 8.dp)
-                )
-                Text(
-                    text = if (isSuccess) "INVIATO!" else "ERRORE!",
-                    style = MaterialTheme.typography.title2,
-                    fontWeight = FontWeight.Bold,
-                    color = Color.White
-                )
-                Text(
-                    text = if (isSuccess) "Payload completato" else "Invio fallito",
-                    style = MaterialTheme.typography.caption2,
-                    color = Color.White.copy(alpha = 0.7f)
-                )
-            }
+            Text(
+                text = if (isSuccess) "✅" else "❌",
+                fontSize = 48.sp,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Text(
+                text = if (isSuccess) "INVIATO!" else "ERRORE!",
+                style = MaterialTheme.typography.title2,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+            Text(
+                text = if (isSuccess) "Payload completato" else "Invio fallito",
+                style = MaterialTheme.typography.caption2,
+                color = Color.White.copy(alpha = 0.7f)
+            )
         }
     }
 }
