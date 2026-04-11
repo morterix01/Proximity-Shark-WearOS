@@ -270,7 +270,7 @@ fun WearApp(
 fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color) {
     val listState = rememberScalingLazyListState()
     val context = LocalContext.current
-    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    val vibrator = context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
     
     // Keep track of the device we recently tapped
     var connectingAddress by remember { mutableStateOf<String?>(null) }
@@ -303,7 +303,11 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
             
             Chip(
                 onClick = {
-                    vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                    try {
+                        if (vibrator?.hasVibrator() == true) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                    } catch (e: Exception) {}
                     connectingAddress = device.address
                     onConnect(device.address)
                 },
@@ -331,7 +335,7 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
         item {
             Text("Layout Tastiera", style = MaterialTheme.typography.caption1, color = sharkBlue, modifier = Modifier.padding(bottom = 8.dp))
         }
-        val layouts = listOf("pc" to "PC (IT)", "android" to "Android (US)", "androidIt" to "Android (IT)")
+        val layouts = listOf("pc" to "PC (IT)", "androidIt" to "Android (IT)")
         items(layouts) { (layoutKey, layoutName) ->
             val isActive = state.activeLayout == layoutKey
             Chip(
