@@ -54,6 +54,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                         updateLibrary(item)
                     }
                 }
+                dataItems.release()
             } catch (e: Exception) {
                 e.printStackTrace()
             }
@@ -74,7 +75,18 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
     override fun onDataChanged(dataEvents: DataEventBuffer) {
         for (event in dataEvents) {
             if (event.type == DataEvent.TYPE_CHANGED && event.dataItem.uri.path == "/library") {
-                updateLibrary(event.dataItem)
+                val map = DataMapItem.fromDataItem(event.dataItem).dataMap
+                val jsonStr = map.getString("library_json") ?: continue
+                
+                scope.launch {
+                    try {
+                        val json = JSONObject(jsonStr)
+                        rootItem = parseJson(json)
+                        navigationStack.clear()
+                    } catch (e: Exception) {
+                        e.printStackTrace()
+                    }
+                }
             }
         }
     }
@@ -83,17 +95,21 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
         if (message.path == "/progress") {
             val progressStr = String(message.data, StandardCharsets.UTF_8)
             val p = progressStr.toFloatOrNull() ?: 0f
-            executionProgress = if (p >= 1.0f) null else p
+            scope.launch {
+                executionProgress = if (p >= 1.0f) null else p
+            }
         }
     }
 
     private fun updateLibrary(dataItem: DataItem) {
-        val map = DataMapItem.fromDataItem(dataItem).dataMap
-        val jsonStr = map.getString("library_json") ?: return
         try {
+            val map = DataMapItem.fromDataItem(dataItem).dataMap
+            val jsonStr = map.getString("library_json") ?: return
             val json = JSONObject(jsonStr)
+            
+            // updateLibrary is already called from scope.launch in onCreate, but just to be safe,
+            // we ensure any other unknown callers don't crash the state.
             rootItem = parseJson(json)
-            // Reset nav stack to root if current breadcrumbs are invalid
             navigationStack.clear()
         } catch (e: Exception) {
             e.printStackTrace()
