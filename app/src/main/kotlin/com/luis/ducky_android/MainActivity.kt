@@ -14,11 +14,15 @@ import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.*
+import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.foundation.Canvas
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.wear.compose.foundation.lazy.ScalingLazyColumn
 import androidx.wear.compose.foundation.lazy.ScalingLazyListState
 import androidx.wear.compose.foundation.lazy.rememberScalingLazyListState
@@ -430,26 +434,76 @@ fun LibraryList(
 
 @Composable
 fun ProgressOverlay(progress: Float, sharkBlue: Color) {
-    // Smoothen the progress updates with an animation
     val animatedProgress by animateFloatAsState(
         targetValue = progress,
-        animationSpec = tween(durationMillis = 600, easing = LinearOutSlowInEasing),
+        animationSpec = tween(durationMillis = 800, easing = LinearOutSlowInEasing),
         label = "ProgressAnimation"
     )
 
-    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-        CircularProgressIndicator(
-            progress = animatedProgress,
-            modifier = Modifier.fillMaxSize().padding(12.dp),
-            startAngle = 270f,
-            indicatorColor = sharkBlue,
-            trackColor = Color.DarkGray,
-            strokeWidth = 6.dp
-        )
+    // Infinite transition for a subtle "pulse" effect
+    val infiniteTransition = rememberInfiniteTransition(label = "Pulse")
+    val pulseAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.6f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "AlphaPulse"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        // Background track and Glow effect
+        Canvas(modifier = Modifier.fillMaxSize().padding(12.dp)) {
+            val strokeWidth = 8.dp.toPx()
+            
+            // Background track
+            drawArc(
+                color = Color.DarkGray.copy(alpha = 0.3f),
+                startAngle = 0f,
+                sweepAngle = 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+            )
+
+            // Progress with SweepGradient for premium look
+            val gradientBrush = Brush.sweepGradient(
+                colors = listOf(sharkBlue.copy(alpha = 0.5f), sharkBlue, Color.Cyan, sharkBlue.copy(alpha = 0.5f)),
+                center = center
+            )
+            
+            drawArc(
+                brush = gradientBrush,
+                startAngle = 270f,
+                sweepAngle = animatedProgress * 360f,
+                useCenter = false,
+                style = Stroke(width = strokeWidth + 2.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            Text("Esecuzione...", style = MaterialTheme.typography.caption1)
-            // Use real progress for text but animated for bar looks more responsive
-            Text("${(progress * 100).toInt()}%", style = MaterialTheme.typography.title2, color = sharkBlue)
+            Text(
+                text = "ESECUZIONE",
+                style = MaterialTheme.typography.caption2.copy(
+                    fontWeight = FontWeight.ExtraBold,
+                    letterSpacing = 1.sp
+                ),
+                color = sharkBlue.copy(alpha = pulseAlpha)
+            )
+            Spacer(modifier = Modifier.height(4.dp))
+            Text(
+                text = "${(progress * 100).toInt()}%",
+                style = MaterialTheme.typography.title1.copy(fontSize = 32.sp),
+                color = Color.White
+            )
+            Text(
+                text = "in corso...",
+                style = MaterialTheme.typography.caption2,
+                color = Color.LightGray.copy(alpha = 0.7f)
+            )
         }
     }
 }
