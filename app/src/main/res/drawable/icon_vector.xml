@@ -4,38 +4,52 @@
     android:viewportWidth="108"
     android:viewportHeight="108">
     
-    <!-- Background Circle -->
+    <!-- Deep Black Background -->
     <path
         android:fillColor="#0A0A12"
         android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0" />
         
-    <!-- Stylized Hacker Shark -->
-    <group android:translateY="5">
-        <!-- Body -->
+    <group android:translateY="-3">
+        <!-- Mechanical Shark Body - Stylized Cyberpunk -->
         <path
             android:fillColor="#00E5FF"
-            android:pathData="M25,55C35,35 75,35 88,55C75,75 35,75 25,55Z" />
-        
-        <!-- Dorsal Fin -->
-        <path
-            android:fillColor="#00E5FF"
-            android:pathData="M50,42L68,22L72,48Z" />
+            android:pathData="M12,62 C25,42 55,35 95,55 C75,68 50,75 12,62 Z" />
             
-        <!-- Tail -->
+        <!-- Sharp Dorsal Fin -->
         <path
             android:fillColor="#00E5FF"
-            android:pathData="M28,55L10,40L10,70Z" />
+            android:pathData="M48,46 L64,12 L72,50 Z" />
             
-        <!-- Eye -->
+        <!-- Pectoral Fin (Bottom) -->
         <path
-            android:fillColor="#0A0A12"
-            android:pathData="M72,52A2,2 0,1,1 76,52A2,2 0,1,1 72,52" />
+            android:fillColor="#00E5FF"
+            android:pathData="M42,65 L28,85 L55,72 Z" />
+            
+        <!-- Forked Hacker Tail -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M15,62 L2,38 L8,62 L2,86 L15,62 Z" />
+            
+        <!-- Glowing Hacker Eye (Neon Red) -->
+        <path
+            android:fillColor="#FF3D00"
+            android:pathData="M78,54 A1.8,1.8 0,1,1 81.6,54 A1.8,1.8 0,1,1 78,54" />
+            
+        <!-- Mechanical Detail (Gill Slits) -->
+        <path
+            android:fillColor="#00000000"
+            android:strokeColor="#0A0A12"
+            android:strokeWidth="1.2"
+            android:strokeLineCap="round"
+            android:pathData="M60,50L58,58M64,52L62,60M68,54L66,62" />
     </group>
 
-    <!-- Cyberpunk Detail (lines) -->
+    <!-- Scanner Lines at Bottom -->
     <path
         android:fillColor="#00000000"
         android:strokeColor="#00E5FF"
-        android:strokeWidth="1"
-        android:pathData="M40,85L68,85M45,90L63,90" />
+        android:strokeWidth="0.8"
+        android:pathData="M35,92L73,92M40,96L68,96"
+        android:fillAlpha="0.5" />
+
 </vector>

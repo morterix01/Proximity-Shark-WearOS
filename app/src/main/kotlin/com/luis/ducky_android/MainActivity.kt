@@ -255,7 +255,7 @@ fun WearApp(
             timeText = { if (progress != 1.0f && progress != -1.0f) TimeText() },
             pageIndicator = {
                 if (progress != 1.0f && progress != -1.0f) {
-                    val indicatorState = remember(pagerState.currentPage, pagerState.currentPageOffsetFraction) {
+                    val indicatorState = remember {
                         object : PageIndicatorState {
                             override val pageOffset: Float get() = pagerState.currentPageOffsetFraction
                             override val selectedPage: Int get() = pagerState.currentPage % 3
@@ -322,7 +322,10 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
             Text("Dispositivi", style = MaterialTheme.typography.caption1, color = sharkBlue, modifier = Modifier.padding(bottom = 8.dp))
         }
         
-        items(state.bondedDevices) { device ->
+        items(
+            items = state.bondedDevices,
+            key = { it.address }
+        ) { device ->
             val isConnected = state.connectionStatus == 1 && state.connectedAddress == device.address
             val isConnecting = connectingAddress == device.address
             
@@ -377,7 +380,10 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
         item {
             Text("Layout Tastiera", style = MaterialTheme.typography.caption1, color = sharkBlue, modifier = Modifier.padding(bottom = 8.dp))
         }
-        items(layouts) { (layoutKey, layoutName) ->
+        items(
+            items = layouts,
+            key = { it.first }
+        ) { (layoutKey, layoutName) ->
             val isActive = state.activeLayout == layoutKey
             Chip(
                 onClick = {
@@ -435,7 +441,10 @@ fun LibraryList(
             }
         }
 
-        items(libraryItem.children) { child ->
+        items(
+            items = libraryItem.children,
+            key = { it.path }
+        ) { child ->
             Chip(
                 onClick = { if (child.isDir) onFolderClick(child) else onFileClick(child) },
                 label = { Text(child.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
