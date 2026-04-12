@@ -372,6 +372,7 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
     val layouts = remember { 
         listOf(
             "pc" to "PC (IT)", 
+            "android" to "Standard (US)",
             "androidIt" to "Android (IT)",
             "usInternational" to "US INTL"
         ) 

@@ -1,4 +1,4 @@
-﻿# ⌚ Proximity Shark - Wear OS Companion
+# ⌚ Proximity Shark - Wear OS Companion
 
 Questa è la Companion App ufficiale per **Proximity Shark**, progettata per estendere il controllo dei tuoi payload DuckyScript direttamente sul tuo smartwatch Wear OS (testato su Galaxy Watch 4).
 
@@ -6,8 +6,9 @@ Questa è la Companion App ufficiale per **Proximity Shark**, progettata per est
 
 - 📁 **Navigazione Remota**: Sfoglia l'intera libreria script organizzata in cartelle sul tuo telefono.
 - 🚀 **Remote Trigger**: Avvia l'esecuzione dei payload sul PC target con un semplice tocco dall'orologio.
-- 📊 **Feedback Visivo**: Barra di progresso circolare che mostra lo stato dell'esecuzione in tempo reale.
-- 🦈 **Design Ottimizzato**: UI leggera in Wear Compose con lo stile "Dark Shark".
+- ⌨️ **Layout Switcher**: Cambia il layout della tastiera (PC IT, US, Android IT) direttamente dal polso.
+- 📊 **Feedback Immediato**: Overlay a tutto schermo (✅/❌) che conferma l'esito dell'invio del payload.
+- 🦈 **Design Shark**: UI ottimizzata in Wear Compose con tema coordinato "Dark Shark".
 
 ## 🛠️ Come Compilare
 
