@@ -357,7 +357,14 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
 @Composable
 fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: Color) {
     val listState = rememberScalingLazyListState()
-    val layouts = remember { listOf("pc" to "PC (IT)", "androidIt" to "Android (IT)") }
+    val layouts = remember { 
+        listOf(
+            "pc" to "PC (IT)", 
+            "android" to "Android (US)",
+            "androidIt" to "Android (IT)",
+            "usInternational" to "US INTL"
+        ) 
+    }
     
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
@@ -371,7 +378,6 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
         item {
             Text("Layout Tastiera", style = MaterialTheme.typography.caption1, color = sharkBlue, modifier = Modifier.padding(bottom = 8.dp))
         }
-        val layouts = listOf("pc" to "PC (IT)", "androidIt" to "Android (IT)")
         items(layouts) { (layoutKey, layoutName) ->
             val isActive = state.activeLayout == layoutKey
             Chip(
