@@ -8,8 +8,8 @@ workflows:
     scripts:
       - name: Build Wear OS APK
         script: |
-          # Use system gradle instead of wrapper to avoid missing gradlew issues
-          gradle assembleDebug
+          # Build in Release mode for 60fps optimization
+          gradle assembleRelease
     artifacts:
-      - app/build/outputs/apk/debug/*.apk
+      - app/build/outputs/apk/release/*.apk
 
