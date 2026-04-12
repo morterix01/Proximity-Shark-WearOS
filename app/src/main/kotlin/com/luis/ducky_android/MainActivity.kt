@@ -44,6 +44,9 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
 
+import androidx.compose.runtime.Immutable
+
+@Immutable
 data class LibraryItem(
     val name: String,
     val isDir: Boolean,
@@ -51,8 +54,10 @@ data class LibraryItem(
     val children: List<LibraryItem> = emptyList()
 )
 
+@Immutable
 data class BluetoothDeviceItem(val name: String, val address: String)
 
+@Immutable
 data class SharkState(
     val connectedAddress: String? = null,
     val connectionStatus: Int = 0,
@@ -126,17 +131,30 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
             val path = dataItem.uri.path
             
             if (path == "/library") {
-                val jsonStr = map.getString("library_json") ?: return
-                scope.launch {
+                val b64 = map.getString("library_json_b64")
+                val jsonStr = map.getString("library_json")
+                scope.launch(Dispatchers.IO) {
                     try {
-                        val json = JSONObject(jsonStr)
-                        rootItem = parseJson(json)
-                        navigationStack.clear()
+                        val finalJsonStr = if (b64 != null) {
+                            val bytes = android.util.Base64.decode(b64, android.util.Base64.DEFAULT)
+                            java.util.zip.GZIPInputStream(bytes.inputStream()).bufferedReader().use { it.readText() }
+                        } else {
+                            jsonStr
+                        }
+                        
+                        if (finalJsonStr != null) {
+                            val json = JSONObject(finalJsonStr)
+                            val newRootItem = parseJson(json)
+                            withContext(Dispatchers.Main) {
+                                rootItem = newRootItem
+                                navigationStack.clear()
+                            }
+                        }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
             } else if (path == "/shark_state") {
                 val jsonStr = map.getString("state_json") ?: return
-                scope.launch {
+                scope.launch(Dispatchers.IO) {
                     try {
                         val json = JSONObject(jsonStr)
                         val connectedAddress = json.optString("connectedAddress", null).takeIf { it != "null" }
@@ -150,7 +168,9 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                                 devices.add(BluetoothDeviceItem(d.getString("name"), d.getString("address")))
                             }
                         }
-                        sharkState = SharkState(connectedAddress, connectionStatus, activeLayout, devices)
+                        withContext(Dispatchers.Main) {
+                            sharkState = SharkState(connectedAddress, connectionStatus, activeLayout, devices)
+                        }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
             }
