@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Background -->
+    <path
+        android:fillColor="#0A0A12"
+        android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0" />
+    <!-- Hacker Shark Fin (Stylized) -->
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,25L25,85H83L54,25Z" />
+    <path
+        android:fillColor="#00E5FF"
+        android:pathData="M54,35L35,75H73L54,35Z"
+        android:fillAlpha="0.3" />
+</vector>
