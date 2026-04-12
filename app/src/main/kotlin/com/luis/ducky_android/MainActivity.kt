@@ -165,9 +165,10 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 val progressStr = String(message.data, StandardCharsets.UTF_8)
                 val p = progressStr.toFloatOrNull() ?: 0f
                 scope.launch {
-                    // Only update if it's a final state (Success/Error)
-                    // We ignore intermediate progress (0.0 to 0.99) because we want instant feedback
-                    if (p == 1.0f || p == -1.0f) {
+                    // We only update if it's an error (-1.0f).
+                    // Success (1.0f) is ignored here because we already showed instant success in runScript()
+                    // to avoid showing the same notification twice.
+                    if (p == -1.0f) {
                         executionProgress = p
                     }
                 }
