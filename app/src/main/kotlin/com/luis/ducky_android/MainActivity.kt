@@ -473,7 +473,7 @@ fun LibraryList(
 
         items(
             items = libraryItem.children,
-            key = { it.path }
+            key = { it.name }
         ) { child ->
             Chip(
                 onClick = { if (child.isDir) onFolderClick(child) else onFileClick(child) },
