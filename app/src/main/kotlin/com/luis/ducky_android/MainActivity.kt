@@ -312,6 +312,14 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
             connectingAddress = null
         }
     }
+
+    // Backup timeout: if no state change happens in 15s, clear the loading state
+    LaunchedEffect(connectingAddress) {
+        if (connectingAddress != null) {
+            delay(15000)
+            connectingAddress = null
+        }
+    }
     
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
