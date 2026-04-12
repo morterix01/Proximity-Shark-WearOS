@@ -3,16 +3,39 @@
     android:height="108dp"
     android:viewportWidth="108"
     android:viewportHeight="108">
-    <!-- Background -->
+    
+    <!-- Background Circle -->
     <path
         android:fillColor="#0A0A12"
         android:pathData="M54,54m-54,0a54,54 0,1 1,108 0a54,54 0,1 1,-108 0" />
-    <!-- Hacker Shark Fin (Stylized) -->
+        
+    <!-- Stylized Hacker Shark -->
+    <group android:translateY="5">
+        <!-- Body -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M25,55C35,35 75,35 88,55C75,75 35,75 25,55Z" />
+        
+        <!-- Dorsal Fin -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M50,42L68,22L72,48Z" />
+            
+        <!-- Tail -->
+        <path
+            android:fillColor="#00E5FF"
+            android:pathData="M28,55L10,40L10,70Z" />
+            
+        <!-- Eye -->
+        <path
+            android:fillColor="#0A0A12"
+            android:pathData="M72,52A2,2 0,1,1 76,52A2,2 0,1,1 72,52" />
+    </group>
+
+    <!-- Cyberpunk Detail (lines) -->
     <path
-        android:fillColor="#00E5FF"
-        android:pathData="M54,25L25,85H83L54,25Z" />
-    <path
-        android:fillColor="#00E5FF"
-        android:pathData="M54,35L35,75H73L54,35Z"
-        android:fillAlpha="0.3" />
+        android:fillColor="#00000000"
+        android:strokeColor="#00E5FF"
+        android:strokeWidth="1"
+        android:pathData="M40,85L68,85M45,90L63,90" />
 </vector>
