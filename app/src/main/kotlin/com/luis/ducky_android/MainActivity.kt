@@ -333,13 +333,25 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
         }
     }
 
-    // Backup timeout: if no state change happens in 15s, clear the loading state
+    // Backup timeout: if no state change happens in 25s, clear the loading state
     LaunchedEffect(connectingAddress) {
         if (connectingAddress != null) {
-            delay(15000)
+            delay(25000)
             connectingAddress = null
         }
     }
+
+    // Infinite pulse animation for connecting chip border
+    val pulseTransition = rememberInfiniteTransition(label = "pulse")
+    val pulseBorderAlpha by pulseTransition.animateFloat(
+        initialValue = 0.3f,
+        targetValue = 1.0f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(700, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ),
+        label = "pulseBorder"
+    )
     
     ScalingLazyColumn(
         modifier = Modifier.fillMaxSize(),
@@ -357,10 +369,32 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
         ) { device ->
             val isConnected = state.connectionStatus == 1 && state.connectedAddress == device.address
             val isConnecting = connectingAddress == device.address
-            
+
+            // Animated chip background color: grey → dark teal when connecting
+            val chipBgColor by animateColorAsState(
+                targetValue = when {
+                    isConnected -> Color(0xFF1B5E20)
+                    isConnecting -> Color(0xFF0D2137)
+                    else -> Color(0xFF1C1C1E)
+                },
+                animationSpec = tween(durationMillis = 350),
+                label = "chipBg_${device.address}"
+            )
+
+            // Animated border/label colour
+            val statusColor by animateColorAsState(
+                targetValue = when {
+                    isConnected -> Color.Green
+                    isConnecting -> sharkBlue.copy(alpha = pulseBorderAlpha)
+                    else -> Color.LightGray
+                },
+                animationSpec = tween(durationMillis = 300),
+                label = "statusColor_${device.address}"
+            )
+
             val subtitleStr = when {
                 isConnected -> "✓ Connesso"
-                isConnecting -> "⏳ Connessione in corso..."
+                isConnecting -> "⏳ Connessione in corso"
                 else -> ""
             }
             
@@ -375,11 +409,20 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
                     onConnect(device.address)
                 },
                 label = { Text(device.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
-                secondaryLabel = if (subtitleStr.isNotEmpty()) {
-                    { Text(subtitleStr, color = if (isConnected) Color.Green else Color.LightGray) }
-                } else null,
-                colors = if (isConnected) ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF1B5E20)) 
-                         else ChipDefaults.secondaryChipColors(),
+                secondaryLabel = {
+                    // AnimatedVisibility for smooth fade+expand of the subtitle
+                    AnimatedVisibility(
+                        visible = subtitleStr.isNotEmpty(),
+                        enter = fadeIn(tween(300)) + expandVertically(tween(300)),
+                        exit  = fadeOut(tween(250)) + shrinkVertically(tween(250))
+                    ) {
+                        Text(
+                            subtitleStr,
+                            color = statusColor
+                        )
+                    }
+                },
+                colors = ChipDefaults.primaryChipColors(backgroundColor = chipBgColor),
                 modifier = Modifier.fillMaxWidth()
             )
         }
