@@ -1,0 +1,62 @@
+name: 🦈 Build ProximityShark WearOS APK
+
+on:
+  push:
+    branches: [ main ]
+    tags: [ 'v*' ]
+  workflow_dispatch:
+
+jobs:
+  build-wearos:
+    name: ⌚ Wear OS APK
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Java 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
+
+      - name: Build Wear OS release APK
+        run: ./gradlew assembleRelease --no-daemon
+
+      - name: Rename APK → ProximityShark_v1.1.0_OS.apk
+        run: |
+          mkdir -p RELEASES/ProximityShark_v1.1.0
+          cp app/build/outputs/apk/release/app-release.apk \
+             RELEASES/ProximityShark_v1.1.0/ProximityShark_v1.1.0_OS.apk
+
+      - name: Upload APK as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ProximityShark_v1.1.0_OS
+          path: RELEASES/ProximityShark_v1.1.0/ProximityShark_v1.1.0_OS.apk
+          retention-days: 30
+
+      # ── Auto-create GitHub Release on version tags ──────────────────────────
+      - name: Create GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: RELEASES/ProximityShark_v1.1.0/ProximityShark_v1.1.0_OS.apk
+          name: "🦈⌚ Proximity Shark WearOS ${{ github.ref_name }}"
+          body: |
+            ## ⌚ Proximity Shark WearOS ${{ github.ref_name }}
+
+            ### Novità in questa release:
+            - 🔴 **Pagina Panic** — 4ª pagina con bottone grande rosso che invia Ctrl+Alt+B
+            - 🔄 **Ghiera digitale** — ruotare la corona naviga tra le pagine
+            - 🔗 **Sync tab telefono** — la ghiera sincronizza anche la bottom bar del telefono
+            - 💀 **Taskkill** — apri l'app telefono per il payload stealth PowerShell
+
+            ### APK incluso:
+            - `ProximityShark_v1.1.0_OS.apk` — per Galaxy Watch / Wear OS
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
