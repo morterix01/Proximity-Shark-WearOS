@@ -26,6 +26,8 @@ jobs:
 
       - name: Build Wear OS release APK
         run: ./gradlew assembleRelease --no-daemon
+        env:
+          GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
 
       - name: Rename APK → ProximityShark_v1.1.0_OS.apk
         run: |
