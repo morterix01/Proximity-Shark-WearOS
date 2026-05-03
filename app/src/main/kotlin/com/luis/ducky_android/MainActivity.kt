@@ -7,6 +7,7 @@ import android.os.Vibrator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
+import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.*
 import androidx.compose.animation.*
@@ -14,9 +15,12 @@ import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.graphics.*
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.foundation.Canvas
+import androidx.compose.ui.input.rotary.onRotaryScrollEvent
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -33,6 +37,8 @@ import androidx.wear.compose.material.Scaffold
 import androidx.wear.compose.material.TimeText
 import androidx.wear.compose.material.PageIndicatorState
 import androidx.wear.compose.material.HorizontalPageIndicator
+import androidx.wear.compose.material.Button
+import androidx.wear.compose.material.ButtonDefaults
 import androidx.wear.compose.material.Chip
 import androidx.wear.compose.material.ChipDefaults
 import androidx.wear.compose.material.Text
@@ -108,6 +114,8 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 onBack = { if (navigationStack.isNotEmpty()) navigationStack.removeLast() },
                 onDeviceConnect = { address -> sendMessageToPhone("/connect_device", address) },
                 onLayoutChange = { layout -> sendMessageToPhone("/set_layout", layout) },
+                onPanic = { sendMessageToPhone("/panic", "") },
+                onNavRotary = { direction -> sendMessageToPhone("/nav", direction) },
                 onExecutionFinished = { executionProgress = null }
             )
         }
@@ -253,10 +261,13 @@ fun WearApp(
     onBack: () -> Unit,
     onDeviceConnect: (String) -> Unit,
     onLayoutChange: (String) -> Unit,
+    onPanic: () -> Unit,
+    onNavRotary: (String) -> Unit,
     onExecutionFinished: () -> Unit
 ) {
     val currentItem = navStack.lastOrNull() ?: rootItem
     val sharkBlue = Color(0xFF00B0FF)
+    val panicRed = Color(0xFFFF3B3B)
 
     // Auto-dismiss progress after 3 seconds if it's a final state (1.0 or -1.0)
     LaunchedEffect(progress) {
@@ -266,10 +277,18 @@ fun WearApp(
         }
     }
     
-    // Virtual infinite pager, starting roughly at the middle so user can swipe both ways forever
+    // 4 pages: Library (0), Devices (1), Layout (2), Panic (3)
+    val totalPages = 4
     val pageCount = Int.MAX_VALUE
-    val startPage = pageCount / 2
+    val startPage = (pageCount / 2 / totalPages) * totalPages // align to 0 mod totalPages
     val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pageCount })
+    val focusRequester = remember { FocusRequester() }
+    val scope = rememberCoroutineScope()
+
+    // Request focus for rotary input on launch
+    LaunchedEffect(Unit) {
+        focusRequester.requestFocus()
+    }
 
     MaterialTheme {
         Scaffold(
@@ -279,20 +298,41 @@ fun WearApp(
                     val indicatorState = remember {
                         object : PageIndicatorState {
                             override val pageOffset: Float get() = pagerState.currentPageOffsetFraction
-                            override val selectedPage: Int get() = pagerState.currentPage % 3
-                            override val pageCount: Int get() = 3
+                            override val selectedPage: Int get() = pagerState.currentPage % totalPages
+                            override val pageCount: Int get() = totalPages
                         }
                     }
                     HorizontalPageIndicator(pageIndicatorState = indicatorState)
                 }
             }
         ) {
-            Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+            Box(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .background(Color.Black)
+                    // ── Rotary / Digital Crown support ─────────────────────────
+                    .onRotaryScrollEvent { event ->
+                        val direction = if (event.verticalScrollPixels > 0) "next" else "prev"
+                        scope.launch {
+                            // Navigate the pager
+                            val target = if (event.verticalScrollPixels > 0)
+                                pagerState.currentPage + 1
+                            else
+                                pagerState.currentPage - 1
+                            pagerState.animateScrollToPage(target)
+                        }
+                        // Also notify the phone app to move its tab
+                        onNavRotary(if (event.verticalScrollPixels > 0) "next" else "prev")
+                        true
+                    }
+                    .focusRequester(focusRequester)
+                    .focusable()
+            ) {
                 if (progress == 1.0f || progress == -1.0f) {
                     ResultOverlay(progress, sharkBlue)
                 } else {
                     HorizontalPager(state = pagerState, modifier = Modifier.fillMaxSize().background(Color.Black)) { page ->
-                        val virtualPage = page % 3
+                        val virtualPage = page % totalPages
                         when (virtualPage) {
                             0 -> { // SCRIPT LIBRARY
                                 if (currentItem == null) {
@@ -309,10 +349,85 @@ fun WearApp(
                             2 -> { // LAYOUT LIST
                                 LayoutList(sharkState, onLayoutChange, sharkBlue)
                             }
+                            3 -> { // PANIC BUTTON
+                                PanicPage(onPanic = onPanic, panicRed = panicRed)
+                            }
                         }
                     }
                 }
             }
+        }
+    }
+}
+
+// ─── Panic Page ──────────────────────────────────────────────────────────────
+@Composable
+fun PanicPage(onPanic: () -> Unit, panicRed: Color) {
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+    var fired by remember { mutableStateOf(false) }
+
+    // Reset fired state after 2s
+    LaunchedEffect(fired) {
+        if (fired) {
+            delay(2000)
+            fired = false
+        }
+    }
+
+    // Pulse animation on the ring
+    val infiniteTransition = rememberInfiniteTransition(label = "panicPulse")
+    val ringAlpha by infiniteTransition.animateFloat(
+        initialValue = 0.3f, targetValue = 0.9f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(900, easing = FastOutSlowInEasing),
+            repeatMode = RepeatMode.Reverse
+        ), label = "ringAlpha"
+    )
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "⚡ PANIC",
+                style = MaterialTheme.typography.title2,
+                fontWeight = FontWeight.Bold,
+                color = if (fired) Color.Green else panicRed,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            // Big circular button
+            Button(
+                onClick = {
+                    try {
+                        if (vibrator?.hasVibrator() == true) {
+                            vibrator.vibrate(
+                                VibrationEffect.createWaveform(longArrayOf(0, 80, 60, 120), -1)
+                            )
+                        }
+                    } catch (e: Exception) {}
+                    fired = true
+                    onPanic()
+                },
+                modifier = Modifier.size(80.dp),
+                colors = ButtonDefaults.primaryButtonColors(
+                    backgroundColor = if (fired) Color(0xFF1B5E20) else panicRed.copy(alpha = ringAlpha)
+                )
+            ) {
+                Text(
+                    if (fired) "✓" else "!",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
+            Text(
+                if (fired) "Inviato!" else "CTRL+ALT+B",
+                style = MaterialTheme.typography.caption2,
+                color = if (fired) Color.Green else panicRed.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 6.dp)
+            )
         }
     }
 }
