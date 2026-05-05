@@ -47,17 +47,21 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
-          files: RELEASES/Proximity-Shark-1.0.2/"Proximity-Shark-1.0.2 (wear os).apk"
-          name: "🦈⌚ Proximity Shark WearOS ${{ github.ref_name }}"
+          files: RELEASES/Proximity-Shark-1.0.2/"Proximity-Shark-1.0.2 (wear os) v2.apk"
+          name: "🦈⌚ Proximity Shark WearOS ${{ github.ref_name }} — The Persistence & Stealth Update"
           body: |
-            ## ⌚ Proximity Shark WearOS ${{ github.ref_name }}
+            ## ⌚ Proximity Shark WearOS ${{ github.ref_name }} — The Persistence & Stealth Update
 
-            ### Novità in questa release:
-            - ⏱️ **Timer Panico** — countdown 10m sincronizzato con il telefono
-            - ↕️ **Vertical Swipe** — scorri su/giù tra Panico e Taskkill
-            - 💀 **Taskkill Direct** — pulsante teschio per chiudere i processi via HID
+            ### 🚀 Novità in questa release (v1.0.8 / Wear v1.0.2):
+            - **🛡️ Remote Shutdown**: Terza scheda dedicata allo spegnimento remoto del PC.
+            - **🔄 Vertical Loop**: Navigazione infinita tra Panic, Taskkill e Shutdown.
+            - **⚡ Sync Feedback**: Animazioni di caricamento sincronizzate con lo stato reale del telefono.
+            - **🧹 UI Lean**: Rimozione del layout US duplicato per una scelta più rapida.
+
+            ### ⏪ Riepilogo v1.0.1:
+            - Ottimizzazione 60 FPS e compressione GZIP per librerie script.
 
             ### APK incluso:
-            - `ProximityShark_v1.1.0_OS.apk` — per Galaxy Watch / Wear OS
+            - `Proximity-Shark-1.0.2 (wear os) v2.apk` — Build per smartwatch.
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
