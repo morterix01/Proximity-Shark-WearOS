@@ -29,16 +29,16 @@ jobs:
         env:
           GRADLE_OPTS: "-Dorg.gradle.jvmargs='-Xmx4096m -XX:MaxMetaspaceSize=1024m'"
 
-      - name: Rename APK → Proximity-Shark-1.0.2 (wear os) v1.apk
+      - name: Rename APK → Proximity-Shark-1.0.2 (wear os) v2.apk
         run: |
           mkdir -p RELEASES/Proximity-Shark-1.0.2
           cp app/build/outputs/apk/release/app-release.apk \
-             RELEASES/Proximity-Shark-1.0.2/"Proximity-Shark-1.0.2 (wear os) v1.apk"
+             RELEASES/Proximity-Shark-1.0.2/"Proximity-Shark-1.0.2 (wear os) v2.apk"
 
       - name: Upload APK as artifact
         uses: actions/upload-artifact@v4
         with:
-          name: Proximity-Shark-1.0.2 (wear os) v1
+          name: Proximity-Shark-1.0.2 (wear os) v2
           path: RELEASES/Proximity-Shark-1.0.2/*.apk
           retention-days: 30
 

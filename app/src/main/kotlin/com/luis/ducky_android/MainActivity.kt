@@ -586,10 +586,10 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
     }
 
     // Backup timeout: if no state change happens in 25s, clear the loading state
-    LaunchedEffect(connectingAddress) {
-        if (connectingAddress != null) {
+    LaunchedEffect(watchInitiatedConnectingAddress) {
+        if (watchInitiatedConnectingAddress != null) {
             delay(25000)
-            connectingAddress = null
+            watchInitiatedConnectingAddress = null
         }
     }
 
