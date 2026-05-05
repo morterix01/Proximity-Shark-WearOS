@@ -6,9 +6,11 @@ Questa è la Companion App ufficiale per **Proximity Shark**, progettata per est
 
 - 📁 **Navigazione Remota**: Sfoglia l'intera libreria script organizzata in cartelle sul tuo telefono.
 - 🚀 **Remote Trigger**: Avvia l'esecuzione dei payload sul PC target con un semplice tocco dall'orologio.
+- 🛡️ **Remote Control**: Comandi rapidi per **Panic Button**, **Taskkill** e **Shutdown** stealth.
+- 🔄 **Vertical Loop**: Navigazione circolare tra le pagine per un passaggio rapido tra le funzioni.
 - ⌨️ **Layout Switcher**: Cambia il layout della tastiera (PC IT, US, Android IT) direttamente dal polso.
-- 📊 **Feedback Immediato**: Overlay a tutto schermo (✅/❌) che conferma l'esito dell'invio del payload.
-- 🦈 **Design Shark**: UI ottimizzata in Wear Compose con tema coordinato "Dark Shark".
+- 📊 **Feedback Immediato**: Overlay a tutto schermo (✅/❌) e feedback tattile sulla connessione.
+- 🦈 **Design Shark**: UI fluida a 60 FPS ottimizzata per display OLED.
 
 ## 🛠️ Come Compilare
 
