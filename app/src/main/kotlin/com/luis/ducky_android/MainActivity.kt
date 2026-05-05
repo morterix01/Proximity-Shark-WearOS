@@ -67,7 +67,9 @@ data class BluetoothDeviceItem(val name: String, val address: String)
 @Immutable
 data class SharkState(
     val connectedAddress: String? = null,
-    val connectionStatus: Int = 0,
+    val connectionStatus: Int = 0, // 0 = disc, 1 = conn
+    val isConnecting: Boolean = false,
+    val connectingAddress: String? = null,
     val activeLayout: String = "pc",
     val panicEndTimeMillis: Long? = null,
     val bondedDevices: List<BluetoothDeviceItem> = emptyList()
@@ -171,6 +173,8 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                         val json = JSONObject(jsonStr)
                         val connectedAddress = json.optString("connectedAddress", null).takeIf { it != "null" }
                         val connectionStatus = json.optInt("connectionStatus", 0)
+                        val isConnecting = json.optBoolean("isConnecting", false)
+                        val connectingAddress = json.optString("connectingAddress", null).takeIf { it != "null" }
                         val activeLayout = json.optString("activeLayout", "pc")
                         val panicEndTimeMillis = if (json.has("panicEndTimeMillis") && !json.isNull("panicEndTimeMillis")) json.getLong("panicEndTimeMillis") else null
                         val devicesArray = json.optJSONArray("bondedDevices")
@@ -182,7 +186,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                             }
                         }
                         withContext(Dispatchers.Main) {
-                            sharkState = SharkState(connectedAddress, connectionStatus, activeLayout, panicEndTimeMillis, devices)
+                            sharkState = SharkState(connectedAddress, connectionStatus, isConnecting, connectingAddress, activeLayout, panicEndTimeMillis, devices)
                         }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
@@ -560,13 +564,24 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
     
-    // Keep track of the device we recently tapped
-    var connectingAddress by remember { mutableStateOf<String?>(null) }
+    // Keep track of the device we recently tapped locally until the phone confirms
+    var watchInitiatedConnectingAddress by remember { mutableStateOf<String?>(null) }
     
-    // Auto-clear connectingAddress if state updates to Connected or Disconnected
-    LaunchedEffect(state.connectionStatus, state.connectedAddress) {
-        if (state.connectionStatus == 1 || state.connectionStatus == 0) {
-            connectingAddress = null
+    // Auto-clear watchInitiatedConnectingAddress if phone state confirms connection or disconnection
+    LaunchedEffect(state.connectionStatus, state.isConnecting, state.connectingAddress) {
+        if (state.connectionStatus == 1 || state.isConnecting) {
+            // If phone is already connecting, we can clear our local one if it matches
+            if (state.connectingAddress == watchInitiatedConnectingAddress) {
+                watchInitiatedConnectingAddress = null
+            }
+        }
+        if (state.connectionStatus == 1 && state.isConnecting == false) {
+             // Fully connected
+             watchInitiatedConnectingAddress = null
+        }
+        if (state.connectionStatus == 0 && state.isConnecting == false) {
+             // Disconnected
+             watchInitiatedConnectingAddress = null
         }
     }
 
@@ -609,7 +624,8 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
             key = { it.address }
         ) { device ->
             val isConnected = state.connectionStatus == 1 && state.connectedAddress == device.address
-            val isConnecting = connectingAddress == device.address
+            val isConnecting = (state.isConnecting && state.connectingAddress == device.address) || 
+                               (watchInitiatedConnectingAddress == device.address)
 
             // Animated chip background color: grey → dark teal when connecting
             val chipBgColor by animateColorAsState(
@@ -646,7 +662,7 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
                             vibrator.vibrate(VibrationEffect.createOneShot(30, VibrationEffect.DEFAULT_AMPLITUDE))
                         }
                     } catch (e: Exception) {}
-                    connectingAddress = device.address
+                    watchInitiatedConnectingAddress = device.address
                     onConnect(device.address)
                 },
                 label = { Text(device.name, maxLines = 1, overflow = TextOverflow.Ellipsis) },
