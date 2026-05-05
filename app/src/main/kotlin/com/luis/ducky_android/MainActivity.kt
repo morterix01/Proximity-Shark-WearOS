@@ -68,6 +68,7 @@ data class SharkState(
     val connectedAddress: String? = null,
     val connectionStatus: Int = 0,
     val activeLayout: String = "pc",
+    val panicEndTimeMillis: Long? = null,
     val bondedDevices: List<BluetoothDeviceItem> = emptyList()
 )
 
@@ -115,6 +116,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 onDeviceConnect = { address -> sendMessageToPhone("/connect_device", address) },
                 onLayoutChange = { layout -> sendMessageToPhone("/set_layout", layout) },
                 onPanic = { sendMessageToPhone("/panic", "") },
+                onTaskkill = { sendMessageToPhone("/taskkill", "") },
                 onNavRotary = { direction -> sendMessageToPhone("/nav", direction) },
                 onExecutionFinished = { executionProgress = null }
             )
@@ -168,6 +170,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                         val connectedAddress = json.optString("connectedAddress", null).takeIf { it != "null" }
                         val connectionStatus = json.optInt("connectionStatus", 0)
                         val activeLayout = json.optString("activeLayout", "pc")
+                        val panicEndTimeMillis = if (json.has("panicEndTimeMillis") && !json.isNull("panicEndTimeMillis")) json.getLong("panicEndTimeMillis") else null
                         val devicesArray = json.optJSONArray("bondedDevices")
                         val devices = mutableListOf<BluetoothDeviceItem>()
                         if (devicesArray != null) {
@@ -177,7 +180,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                             }
                         }
                         withContext(Dispatchers.Main) {
-                            sharkState = SharkState(connectedAddress, connectionStatus, activeLayout, devices)
+                            sharkState = SharkState(connectedAddress, connectionStatus, activeLayout, panicEndTimeMillis, devices)
                         }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
@@ -262,6 +265,7 @@ fun WearApp(
     onDeviceConnect: (String) -> Unit,
     onLayoutChange: (String) -> Unit,
     onPanic: () -> Unit,
+    onTaskkill: () -> Unit,
     onNavRotary: (String) -> Unit,
     onExecutionFinished: () -> Unit
 ) {
@@ -349,8 +353,13 @@ fun WearApp(
                             2 -> { // LAYOUT LIST
                                 LayoutList(sharkState, onLayoutChange, sharkBlue)
                             }
-                            3 -> { // PANIC BUTTON
-                                PanicPage(onPanic = onPanic, panicRed = panicRed)
+                            3 -> { // PANIC & TASKKILL
+                                PanicContainer(
+                                    onPanic = onPanic,
+                                    onTaskkill = onTaskkill,
+                                    panicEndTimeMillis = sharkState.panicEndTimeMillis,
+                                    panicRed = panicRed
+                                )
                             }
                         }
                     }
@@ -360,12 +369,41 @@ fun WearApp(
     }
 }
 
+@Composable
+fun PanicContainer(
+    onPanic: () -> Unit,
+    onTaskkill: () -> Unit,
+    panicEndTimeMillis: Long?,
+    panicRed: Color
+) {
+    val pagerState = rememberPagerState(pageCount = { 2 })
+    VerticalPager(
+        state = pagerState,
+        modifier = Modifier.fillMaxSize()
+    ) { page ->
+        if (page == 0) {
+            PanicPage(onPanic = onPanic, panicEndTimeMillis = panicEndTimeMillis, panicRed = panicRed)
+        } else {
+            TaskkillPage(onTaskkill = onTaskkill)
+        }
+    }
+}
+
 // ─── Panic Page ──────────────────────────────────────────────────────────────
 @Composable
-fun PanicPage(onPanic: () -> Unit, panicRed: Color) {
+fun PanicPage(onPanic: () -> Unit, panicEndTimeMillis: Long?, panicRed: Color) {
     val context = LocalContext.current
     val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
     var fired by remember { mutableStateOf(false) }
+
+    // Timer for UI refresh
+    val now = remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            delay(1000)
+            now.value = System.currentTimeMillis()
+        }
+    }
 
     // Reset fired state after 2s
     LaunchedEffect(fired) {
@@ -422,10 +460,83 @@ fun PanicPage(onPanic: () -> Unit, panicRed: Color) {
                     color = Color.White
                 )
             }
+            
+            val remaining = (panicEndTimeMillis ?: 0L) - now.value
+            if (remaining > 0) {
+                val minutes = remaining / 60000
+                val seconds = (remaining % 60000) / 1000
+                Text(
+                    text = String.format("%02d:%02d", minutes, seconds),
+                    style = MaterialTheme.typography.caption2,
+                    color = Color.White,
+                    fontWeight = FontWeight.Bold,
+                    modifier = Modifier.padding(top = 4.dp)
+                )
+            } else {
+                Text(
+                    if (fired) "Inviato!" else "CTRL+ALT+B",
+                    style = MaterialTheme.typography.caption2,
+                    color = if (fired) Color.Green else panicRed.copy(alpha = 0.7f),
+                    modifier = Modifier.padding(top = 6.dp)
+                )
+            }
+        }
+    }
+}
+
+// ─── Taskkill Page ──────────────────────────────────────────────────────────
+@Composable
+fun TaskkillPage(onTaskkill: () -> Unit) {
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+    val taskkillOrange = Color(0xFFFF5722)
+    var fired by remember { mutableStateOf(false) }
+
+    LaunchedEffect(fired) {
+        if (fired) {
+            delay(2000)
+            fired = false
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                if (fired) "Inviato!" else "CTRL+ALT+B",
+                "☠️ TASKKILL",
+                style = MaterialTheme.typography.title2,
+                fontWeight = FontWeight.Bold,
+                color = if (fired) Color.Green else taskkillOrange,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Button(
+                onClick = {
+                    try {
+                        if (vibrator?.hasVibrator() == true) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                    } catch (e: Exception) {}
+                    fired = true
+                    onTaskkill()
+                },
+                modifier = Modifier.size(80.dp),
+                colors = ButtonDefaults.primaryButtonColors(
+                    backgroundColor = if (fired) Color(0xFF1B5E20) else taskkillOrange
+                )
+            ) {
+                Text(
+                    if (fired) "✓" else "☠",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
+            Text(
+                if (fired) "Inviato!" else "CHIUDI PROCESSI",
                 style = MaterialTheme.typography.caption2,
-                color = if (fired) Color.Green else panicRed.copy(alpha = 0.7f),
+                color = if (fired) Color.Green else taskkillOrange.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 6.dp)
             )
         }
