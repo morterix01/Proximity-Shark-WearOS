@@ -39,7 +39,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: Proximity-Shark-1.0.2 (wear os)
-          path: RELEASES/Proximity-Shark-1.0.2/"Proximity-Shark-1.0.2 (wear os).apk"
+          path: RELEASES/Proximity-Shark-1.0.2/*.apk
           retention-days: 30
 
       # ── Auto-create GitHub Release on version tags ──────────────────────────
