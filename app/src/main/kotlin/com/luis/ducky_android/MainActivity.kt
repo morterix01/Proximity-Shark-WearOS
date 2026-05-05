@@ -592,7 +592,11 @@ fun DeviceList(state: SharkState, onConnect: (String) -> Unit, sharkBlue: Color)
         }
         
         items(
-            items = state.bondedDevices,
+            items = state.bondedDevices.filter { 
+                it.name.isNotEmpty() && 
+                !it.name.equals("Unknown Device", ignoreCase = true) && 
+                !it.name.equals("Unknown", ignoreCase = true) 
+            },
             key = { it.address }
         ) { device ->
             val isConnected = state.connectionStatus == 1 && state.connectedAddress == device.address
@@ -663,7 +667,6 @@ fun LayoutList(state: SharkState, onLayoutChange: (String) -> Unit, sharkBlue: C
     val layouts = remember { 
         listOf(
             "pc" to "PC (IT)", 
-            "android" to "Standard (US)",
             "androidIt" to "Android (IT)",
             "usInternational" to "US INTL"
         ) 
