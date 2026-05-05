@@ -118,6 +118,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 onLayoutChange = { layout -> sendMessageToPhone("/set_layout", layout) },
                 onPanic = { sendMessageToPhone("/panic", "") },
                 onTaskkill = { sendMessageToPhone("/taskkill", "") },
+                onShutdown = { sendMessageToPhone("/shutdown", "") },
                 onNavRotary = { direction -> sendMessageToPhone("/nav", direction) },
                 onExecutionFinished = { executionProgress = null }
             )
@@ -267,6 +268,7 @@ fun WearApp(
     onLayoutChange: (String) -> Unit,
     onPanic: () -> Unit,
     onTaskkill: () -> Unit,
+    onShutdown: () -> Unit,
     onNavRotary: (String) -> Unit,
     onExecutionFinished: () -> Unit
 ) {
@@ -354,10 +356,11 @@ fun WearApp(
                             2 -> { // LAYOUT LIST
                                 LayoutList(sharkState, onLayoutChange, sharkBlue)
                             }
-                            3 -> { // PANIC & TASKKILL
+                            3 -> { // PANIC & TASKKILL & SHUTDOWN
                                 PanicContainer(
                                     onPanic = onPanic,
                                     onTaskkill = onTaskkill,
+                                    onShutdown = onShutdown,
                                     panicEndTimeMillis = sharkState.panicEndTimeMillis,
                                     panicRed = panicRed
                                 )
@@ -375,18 +378,24 @@ fun WearApp(
 fun PanicContainer(
     onPanic: () -> Unit,
     onTaskkill: () -> Unit,
+    onShutdown: () -> Unit,
     panicEndTimeMillis: Long?,
     panicRed: Color
 ) {
-    val pagerState = rememberPagerState(pageCount = { 2 })
+    val totalVerticalPages = 3
+    val verticalPageCount = Int.MAX_VALUE
+    val startVerticalPage = (verticalPageCount / 2 / totalVerticalPages) * totalVerticalPages
+    val pagerState = rememberPagerState(initialPage = startVerticalPage, pageCount = { verticalPageCount })
+    
     VerticalPager(
         state = pagerState,
         modifier = Modifier.fillMaxSize()
     ) { page ->
-        if (page == 0) {
-            PanicPage(onPanic = onPanic, panicEndTimeMillis = panicEndTimeMillis, panicRed = panicRed)
-        } else {
-            TaskkillPage(onTaskkill = onTaskkill)
+        val virtualPage = page % totalVerticalPages
+        when (virtualPage) {
+            0 -> PanicPage(onPanic = onPanic, panicEndTimeMillis = panicEndTimeMillis, panicRed = panicRed)
+            1 -> TaskkillPage(onTaskkill = onTaskkill)
+            2 -> ShutdownPage(onShutdown = onShutdown)
         }
     }
 }
@@ -800,6 +809,65 @@ fun ResultOverlay(progress: Float, sharkBlue: Color) {
                 text = if (isSuccess) "Payload completato" else "Invio fallito",
                 style = MaterialTheme.typography.caption2,
                 color = Color.White.copy(alpha = 0.7f)
+            )
+        }
+    }
+}
+
+// ─── Shutdown Page ──────────────────────────────────────────────────────────
+@Composable
+fun ShutdownPage(onShutdown: () -> Unit) {
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+    val shutdownRed = Color(0xFFD32F2F)
+    var fired by remember { mutableStateOf(false) }
+
+    LaunchedEffect(fired) {
+        if (fired) {
+            delay(2000)
+            fired = false
+        }
+    }
+
+    Box(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        contentAlignment = Alignment.Center
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text(
+                "🔋 SHUTDOWN",
+                style = MaterialTheme.typography.title2,
+                fontWeight = FontWeight.Bold,
+                color = if (fired) Color.Green else shutdownRed,
+                modifier = Modifier.padding(bottom = 8.dp)
+            )
+            Button(
+                onClick = {
+                    try {
+                        if (vibrator?.hasVibrator() == true) {
+                            vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                    } catch (e: Exception) {}
+                    fired = true
+                    onShutdown()
+                },
+                modifier = Modifier.size(80.dp),
+                colors = ButtonDefaults.primaryButtonColors(
+                    backgroundColor = if (fired) Color(0xFF1B5E20) else shutdownRed
+                )
+            ) {
+                Text(
+                    if (fired) "✓" else "⏻",
+                    fontSize = 32.sp,
+                    fontWeight = FontWeight.Black,
+                    color = Color.White
+                )
+            }
+            Text(
+                if (fired) "Inviato!" else "SPEGNI PC",
+                style = MaterialTheme.typography.caption2,
+                color = if (fired) Color.Green else shutdownRed.copy(alpha = 0.7f),
+                modifier = Modifier.padding(top = 6.dp)
             )
         }
     }
