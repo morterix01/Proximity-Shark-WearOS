@@ -10,6 +10,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.pager.*
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.animation.*
 import androidx.compose.animation.core.*
 import androidx.compose.runtime.*
@@ -369,6 +370,7 @@ fun WearApp(
     }
 }
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PanicContainer(
     onPanic: () -> Unit,
