@@ -1,6 +1,7 @@
 package com.luis.ducky_android
 
 import android.app.Activity
+import android.app.RemoteInput
 import android.content.Context
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -53,9 +54,7 @@ import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
-import android.app.RemoteInput
 import android.content.Intent
-import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.runtime.Immutable
 
@@ -909,6 +908,132 @@ fun ResultOverlay(progress: Float, sharkBlue: Color) {
     }
 }
 
+// ─── Panic & Tools Pages ──────────────────────────────────────────────────
+@Composable
+fun PanicPage(onPanic: () -> Unit, panicEndTimeMillis: Long?, panicRed: Color) {
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+    val isPanicActive = panicEndTimeMillis != null && System.currentTimeMillis() < panicEndTimeMillis
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "🚨 PANIC MODE",
+            style = MaterialTheme.typography.title2,
+            fontWeight = FontWeight.Bold,
+            color = if (isPanicActive) Color.Green else panicRed,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Button(
+            onClick = {
+                try {
+                    if (vibrator?.hasVibrator() == true) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(100, VibrationEffect.DEFAULT_AMPLITUDE))
+                    }
+                } catch (e: Exception) {}
+                onPanic()
+            },
+            modifier = Modifier.size(80.dp),
+            colors = ButtonDefaults.primaryButtonColors(
+                backgroundColor = if (isPanicActive) Color(0xFF1B5E20) else panicRed
+            )
+        ) {
+            Text(
+                if (isPanicActive) "OFF" else "ON",
+                fontSize = 24.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White
+            )
+        }
+        Text(
+            if (isPanicActive) "Attivo!" else "DISATTIVA PC",
+            style = MaterialTheme.typography.caption2,
+            color = if (isPanicActive) Color.Green else panicRed.copy(alpha = 0.7f),
+            modifier = Modifier.padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+fun TaskkillPage(onTaskkill: () -> Unit) {
+    val context = LocalContext.current
+    val vibrator = remember { context.getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator }
+    val taskkillBlue = Color(0xFF00B0FF)
+    var fired by remember { mutableStateOf(false) }
+
+    LaunchedEffect(fired) {
+        if (fired) {
+            delay(1500)
+            fired = false
+        }
+    }
+
+    Column(
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.Center
+    ) {
+        Text(
+            "⚡ TASKKILL",
+            style = MaterialTheme.typography.title2,
+            fontWeight = FontWeight.Bold,
+            color = if (fired) Color.Green else taskkillBlue,
+            modifier = Modifier.padding(bottom = 8.dp)
+        )
+        Button(
+            onClick = {
+                try {
+                    if (vibrator?.hasVibrator() == true) {
+                        vibrator.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                    }
+                } catch (e: Exception) {}
+                fired = true
+                onTaskkill()
+            },
+            modifier = Modifier.size(80.dp),
+            colors = ButtonDefaults.primaryButtonColors(
+                backgroundColor = if (fired) Color(0xFF1B5E20) else taskkillBlue
+            )
+        ) {
+            Text(
+                if (fired) "✓" else "✖",
+                fontSize = 32.sp,
+                fontWeight = FontWeight.Black,
+                color = Color.White
+            )
+        }
+        Text(
+            if (fired) "Inviato!" else "CHIUDI APP",
+            style = MaterialTheme.typography.caption2,
+            color = if (fired) Color.Green else taskkillBlue.copy(alpha = 0.7f),
+            modifier = Modifier.padding(top = 6.dp)
+        )
+    }
+}
+
+@Composable
+fun PanicContainer(
+    onPanic: () -> Unit,
+    onTaskkill: () -> Unit,
+    onShutdown: () -> Unit,
+    panicEndTimeMillis: Long?,
+    panicRed: Color
+) {
+    val listState = rememberScalingLazyListState()
+    ScalingLazyColumn(
+        modifier = Modifier.fillMaxSize(),
+        state = listState,
+        autoCentering = AutoCenteringParams(itemIndex = 0)
+    ) {
+        item { PanicPage(onPanic, panicEndTimeMillis, panicRed) }
+        item { TaskkillPage(onTaskkill) }
+        item { ShutdownPage(onShutdown) }
+    }
+}
+
 // ─── Shutdown Page ──────────────────────────────────────────────────────────
 @Composable
 fun ShutdownPage(onShutdown: () -> Unit) {
@@ -1136,7 +1261,7 @@ fun ChatPage(
                             .build()
                         val intent = androidx.wear.input.RemoteInputIntentHelper.createActionRemoteInputIntent()
                         androidx.wear.input.RemoteInputIntentHelper.putRemoteInputsExtra(intent, listOf(remoteInput))
-                        launcher.launch(intent)
+                        remoteInputLauncher.launch(intent)
                     },
                     label = { Text("✏️ Scrivi", fontSize = 11.sp) },
                     colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF004D33)),
