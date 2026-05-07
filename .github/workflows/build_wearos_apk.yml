@@ -2,8 +2,8 @@ name: 🦈 Build ProximityShark WearOS APK
 
 on:
   push:
-    branches: [ main ]
-    tags: [ 'v*' ]
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 jobs:
