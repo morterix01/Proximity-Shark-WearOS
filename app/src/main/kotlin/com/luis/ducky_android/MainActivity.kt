@@ -1,11 +1,14 @@
 package com.luis.ducky_android
 
+import android.app.Activity
 import android.content.Context
 import android.os.Bundle
 import android.os.VibrationEffect
 import android.os.Vibrator
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.layout.*
@@ -963,7 +966,6 @@ fun ShutdownPage(onShutdown: () -> Unit) {
             )
         }
     }
-}
 
 // ─── Chat Page ───────────────────────────────────────────────────────────────
 private val QUICK_MESSAGES = listOf(
@@ -982,21 +984,26 @@ fun ChatPage(
 ) {
     val listState = rememberScalingLazyListState()
     var showQuickMessages by remember { mutableStateOf(false) }
+    val coroutineScope = rememberCoroutineScope()
+
+    // Launcher for custom text input
+    val remoteInputLauncher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val data = result.data
+        if (result.resultCode == Activity.RESULT_OK && data != null) {
+            val results = RemoteInput.getResultsFromIntent(data)
+            val text = results?.getCharSequence(REMOTE_INPUT_KEY)?.toString()
+            if (!text.isNullOrBlank()) {
+                onChatSend(text)
+            }
+        }
+    }
 
     // Scroll to latest message when new ones arrive
     LaunchedEffect(chatState.messages.size) {
         if (chatState.messages.isNotEmpty()) {
             listState.animateScrollToItem(chatState.messages.size + 3)
-        }
-    }
-
-    val launcher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.StartActivityForResult()
-    ) { result ->
-        val bundle = RemoteInput.getResultsFromIntent(result.data ?: return@rememberLauncherForActivityResult)
-        val text = bundle?.getCharSequence(REMOTE_INPUT_KEY)?.toString()
-        if (!text.isNullOrBlank()) {
-            onChatSend(text)
         }
     }
 
