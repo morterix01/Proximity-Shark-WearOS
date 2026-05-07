@@ -1,7 +1,7 @@
 package com.luis.ducky_android
 
 import android.app.Activity
-import androidx.core.app.RemoteInput
+import android.app.RemoteInput
 import android.content.Context
 import android.os.Bundle
 import android.os.VibrationEffect
