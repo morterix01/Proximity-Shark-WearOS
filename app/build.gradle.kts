@@ -13,7 +13,7 @@ android {
         minSdk = 28
         targetSdk = 34
         versionCode = 3
-        versionName = "1.0.8"
+        versionName = "1.0.2"
     }
 
 
@@ -59,6 +59,7 @@ dependencies {
     implementation("androidx.compose.foundation:foundation:1.5.4")
     implementation("androidx.compose.ui:ui-tooling-preview:1.5.4")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.7.3")
+    implementation("androidx.wear:wear-input:1.2.0-alpha02")
 }
 
 

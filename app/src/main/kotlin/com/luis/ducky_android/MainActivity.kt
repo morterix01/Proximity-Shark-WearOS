@@ -50,6 +50,9 @@ import kotlinx.coroutines.tasks.await
 import org.json.JSONArray
 import org.json.JSONObject
 import java.nio.charset.StandardCharsets
+import android.app.RemoteInput
+import android.content.Intent
+import androidx.activity.result.contract.ActivityResultContracts
 
 import androidx.compose.runtime.Immutable
 
@@ -75,6 +78,28 @@ data class SharkState(
     val bondedDevices: List<BluetoothDeviceItem> = emptyList()
 )
 
+@Immutable
+data class WatchChatMessage(
+    val senderId: String,
+    val senderName: String,
+    val text: String,
+    val timestampMs: Long,
+    val isOwn: Boolean
+)
+
+@Immutable
+data class WatchChatPeer(
+    val id: String,
+    val name: String,
+    val isConnected: Boolean
+)
+
+@Immutable
+data class ChatState(
+    val messages: List<WatchChatMessage> = emptyList(),
+    val peers: List<WatchChatPeer> = emptyList()
+)
+
 class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, MessageClient.OnMessageReceivedListener {
 
     private val sharkBlue = Color(0xFF00B0FF)
@@ -85,6 +110,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
     private var navigationStack = mutableStateListOf<LibraryItem>()
     private var executionProgress by mutableStateOf<Float?>(null)
     private var sharkState by mutableStateOf(SharkState())
+    private var chatState by mutableStateOf(ChatState())
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -97,7 +123,7 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
             try {
                 val dataItems = Wearable.getDataClient(this@MainActivity).dataItems.await()
                 for (item in dataItems) {
-                    if (item.uri.path == "/library" || item.uri.path == "/shark_state") {
+                    if (item.uri.path == "/library" || item.uri.path == "/shark_state" || item.uri.path == "/chat_state") {
                         updateStateFromDataItem(item)
                     }
                 }
@@ -122,7 +148,9 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                 onTaskkill = { sendMessageToPhone("/taskkill", "") },
                 onShutdown = { sendMessageToPhone("/shutdown", "") },
                 onNavRotary = { direction -> sendMessageToPhone("/nav", direction) },
-                onExecutionFinished = { executionProgress = null }
+                onExecutionFinished = { executionProgress = null },
+                chatState = chatState,
+                onChatSend = { text -> sendMessageToPhone("/chat_send", text) }
             )
         }
     }
@@ -187,6 +215,45 @@ class MainActivity : ComponentActivity(), DataClient.OnDataChangedListener, Mess
                         }
                         withContext(Dispatchers.Main) {
                             sharkState = SharkState(connectedAddress, connectionStatus, isConnecting, connectingAddress, activeLayout, panicEndTimeMillis, devices)
+                        }
+                    } catch (e: Exception) { e.printStackTrace() }
+                }
+            } else if (path == "/chat_state") {
+                val jsonStr = map.getString("chat_json") ?: return
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        val json = JSONObject(jsonStr)
+                        val msgsArray = json.optJSONArray("messages") ?: JSONArray()
+                        val peersArray = json.optJSONArray("peers") ?: JSONArray()
+                        val msgs = mutableListOf<WatchChatMessage>()
+                        for (i in 0 until msgsArray.length()) {
+                            val m = msgsArray.getJSONObject(i)
+                            val isOwn = m.optBoolean("isOwn", false)
+                            msgs.add(WatchChatMessage(
+                                senderId = m.optString("senderId", "?"),
+                                senderName = m.optString("senderName", "?"),
+                                text = m.optString("text", ""),
+                                timestampMs = m.optLong("timestamp", 0L),
+                                isOwn = isOwn
+                            ))
+                        }
+                        
+                        // Vibrate if a new message arrived and it's not our own
+                        if (msgs.size > chatState.messages.size && msgs.lastOrNull()?.isOwn == false) {
+                            val vibrator = getSystemService(Context.VIBRATOR_SERVICE) as? Vibrator
+                            vibrator?.vibrate(VibrationEffect.createOneShot(50, VibrationEffect.DEFAULT_AMPLITUDE))
+                        }
+                        val peers = mutableListOf<WatchChatPeer>()
+                        for (i in 0 until peersArray.length()) {
+                            val p = peersArray.getJSONObject(i)
+                            peers.add(WatchChatPeer(
+                                id = p.optString("id", ""),
+                                name = p.optString("name", "?"),
+                                isConnected = p.optBoolean("isConnected", false)
+                            ))
+                        }
+                        withContext(Dispatchers.Main) {
+                            chatState = ChatState(msgs, peers)
                         }
                     } catch (e: Exception) { e.printStackTrace() }
                 }
@@ -274,7 +341,9 @@ fun WearApp(
     onTaskkill: () -> Unit,
     onShutdown: () -> Unit,
     onNavRotary: (String) -> Unit,
-    onExecutionFinished: () -> Unit
+    onExecutionFinished: () -> Unit,
+    chatState: ChatState = ChatState(),
+    onChatSend: (String) -> Unit = {}
 ) {
     val currentItem = navStack.lastOrNull() ?: rootItem
     val sharkBlue = Color(0xFF00B0FF)
@@ -288,8 +357,8 @@ fun WearApp(
         }
     }
     
-    // 4 pages: Library (0), Devices (1), Layout (2), Panic (3)
-    val totalPages = 4
+    // 5 pages: Library (0), Devices (1), Layout (2), Panic (3), Chat (4)
+    val totalPages = 5
     val pageCount = Int.MAX_VALUE
     val startPage = (pageCount / 2 / totalPages) * totalPages // align to 0 mod totalPages
     val pagerState = rememberPagerState(initialPage = startPage, pageCount = { pageCount })
@@ -367,6 +436,13 @@ fun WearApp(
                                     onShutdown = onShutdown,
                                     panicEndTimeMillis = sharkState.panicEndTimeMillis,
                                     panicRed = panicRed
+                                )
+                            }
+                            4 -> { // SHARK CHAT
+                                ChatPage(
+                                    chatState = chatState,
+                                    onChatSend = onChatSend,
+                                    sharkBlue = sharkBlue
                                 )
                             }
                         }
@@ -885,6 +961,181 @@ fun ShutdownPage(onShutdown: () -> Unit) {
                 color = if (fired) Color.Green else shutdownRed.copy(alpha = 0.7f),
                 modifier = Modifier.padding(top = 6.dp)
             )
+        }
+    }
+}
+
+// ─── Chat Page ───────────────────────────────────────────────────────────────
+private val QUICK_MESSAGES = listOf(
+    "✅ Ok", "❌ No", "⏳ Aspetta", "🚨 Attenzione!",
+    "👍 Fatto", "📍 Sono qui", "🤫 Silenzio",
+    "🔄 Riprova", "⚡ Urgente", "🛑 Stop"
+)
+
+private const val REMOTE_INPUT_KEY = "chat_input"
+
+@Composable
+fun ChatPage(
+    chatState: ChatState,
+    onChatSend: (String) -> Unit,
+    sharkBlue: Color
+) {
+    val listState = rememberScalingLazyListState()
+    var showQuickMessages by remember { mutableStateOf(false) }
+
+    // Scroll to latest message when new ones arrive
+    LaunchedEffect(chatState.messages.size) {
+        if (chatState.messages.isNotEmpty()) {
+            listState.animateScrollToItem(chatState.messages.size + 3)
+        }
+    }
+
+    val launcher = rememberLauncherForActivityResult(
+        contract = ActivityResultContracts.StartActivityForResult()
+    ) { result ->
+        val bundle = RemoteInput.getResultsFromIntent(result.data ?: return@rememberLauncherForActivityResult)
+        val text = bundle?.getCharSequence(REMOTE_INPUT_KEY)?.toString()
+        if (!text.isNullOrBlank()) {
+            onChatSend(text)
+        }
+    }
+
+    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        ScalingLazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            state = listState,
+            autoCentering = AutoCenteringParams(itemIndex = 0),
+            contentPadding = PaddingValues(top = 28.dp, bottom = 60.dp, start = 6.dp, end = 6.dp)
+        ) {
+            // Header with peer count
+            item {
+                Column(
+                    modifier = Modifier.padding(bottom = 8.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Text(
+                        "🦈 Shark Chat",
+                        style = MaterialTheme.typography.title3,
+                        color = sharkBlue,
+                        fontWeight = FontWeight.Bold
+                    )
+                    
+                    val connectedCount = chatState.peers.count { it.isConnected }
+                    Text(
+                        if (connectedCount > 0) "• $connectedCount online" else "In ricerca...",
+                        style = MaterialTheme.typography.caption2,
+                        color = if (connectedCount > 0) Color.Green else Color.Gray
+                    )
+
+                    // Peer names list
+                    if (chatState.peers.isNotEmpty()) {
+                        Row(
+                            modifier = Modifier.padding(top = 4.dp).fillMaxWidth(),
+                            horizontalArrangement = Arrangement.Center
+                        ) {
+                            chatState.peers.take(3).forEach { peer ->
+                                Box(
+                                    modifier = Modifier
+                                        .padding(horizontal = 2.dp)
+                                        .background(
+                                            if (peer.isConnected) Color(0xFF1B5E20) else Color.DarkGray,
+                                            shape = androidx.compose.foundation.shape.CircleShape
+                                        )
+                                        .padding(horizontal = 6.dp, vertical = 1.dp)
+                                ) {
+                                    Text(peer.name, fontSize = 8.sp, color = Color.White)
+                                }
+                            }
+                            if (chatState.peers.size > 3) {
+                                Text("...", color = Color.Gray, fontSize = 8.sp)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Empty state
+            if (chatState.messages.isEmpty()) {
+                item {
+                    Text(
+                        if (chatState.peers.isEmpty()) "Nessun dispositivo vicino"
+                        else "Nessun messaggio ancora",
+                        style = MaterialTheme.typography.caption2,
+                        color = Color.Gray,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // Message bubbles
+            items(chatState.messages) { msg ->
+                val bgColor = if (msg.isOwn) Color(0xFF003A66) else Color(0xFF1C1C1E)
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(vertical = 2.dp),
+                    horizontalAlignment = if (msg.isOwn) Alignment.End else Alignment.Start
+                ) {
+                    if (!msg.isOwn) {
+                        Text(
+                            msg.senderName,
+                            style = MaterialTheme.typography.caption2,
+                            color = sharkBlue,
+                            fontWeight = FontWeight.Bold
+                        )
+                    }
+                    Box(
+                        modifier = Modifier
+                            .background(bgColor, shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp))
+                            .padding(horizontal = 10.dp, vertical = 6.dp)
+                    ) {
+                        Text(
+                            msg.text,
+                            style = MaterialTheme.typography.caption1,
+                            color = Color.White,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
+                }
+            }
+
+            // Quick messages toggle
+            item {
+                Chip(
+                    onClick = { showQuickMessages = !showQuickMessages },
+                    label = { Text(if (showQuickMessages) "❌ Chiudi" else "⚡ Veloci", fontSize = 11.sp) },
+                    colors = ChipDefaults.secondaryChipColors(),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            if (showQuickMessages) {
+                items(QUICK_MESSAGES) { qMsg ->
+                    Chip(
+                        onClick = { onChatSend(qMsg); showQuickMessages = false },
+                        label = { Text(qMsg, fontSize = 11.sp, maxLines = 1, overflow = TextOverflow.Ellipsis) },
+                        colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF00274D)),
+                        modifier = Modifier.fillMaxWidth()
+                    )
+                }
+            }
+
+            // Custom message via system keyboard / voice
+            item {
+                Chip(
+                    onClick = {
+                        val remoteInput = RemoteInput.Builder(REMOTE_INPUT_KEY)
+                            .setLabel("Scrivi messaggio...")
+                            .build()
+                        val intent = androidx.wear.input.RemoteInputIntentHelper.createActionRemoteInputIntent()
+                        androidx.wear.input.RemoteInputIntentHelper.putRemoteInputsExtra(intent, listOf(remoteInput))
+                        launcher.launch(intent)
+                    },
+                    label = { Text("✏️ Scrivi", fontSize = 11.sp) },
+                    colors = ChipDefaults.primaryChipColors(backgroundColor = Color(0xFF004D33)),
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
         }
     }
 }
