@@ -1,7 +1,7 @@
 package com.luis.ducky_android
 
 import android.app.Activity
-import android.app.RemoteInput
+import androidx.core.app.RemoteInput
 import android.content.Context
 import android.os.Bundle
 import android.os.VibrationEffect
@@ -1132,6 +1132,7 @@ fun ChatPage(
                     onClick = {
                         val remoteInput = RemoteInput.Builder(REMOTE_INPUT_KEY)
                             .setLabel("Scrivi messaggio...")
+                            .setAllowFreeFormInput(true)
                             .build()
                         val intent = androidx.wear.input.RemoteInputIntentHelper.createActionRemoteInputIntent()
                         androidx.wear.input.RemoteInputIntentHelper.putRemoteInputsExtra(intent, listOf(remoteInput))
